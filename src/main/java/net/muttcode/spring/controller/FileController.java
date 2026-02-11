@@ -15,13 +15,13 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+
 @RestController
 @RequestMapping("/api")
 @CrossOrigin(origins = "http://localhost:5173")
 public class FileController {
 
     private static final Logger logger = Logger.getLogger(FileController.class.getName());
-
     private final FileService fileService;
 
     public FileController(FileService fileService) {
@@ -31,6 +31,7 @@ public class FileController {
     // -------- UPLOAD --------
     @PostMapping("/upload")
     public Map<String, String> upload(@RequestParam("file") MultipartFile file) throws IOException {
+
         logger.info("Upload request received for file: " + file.getOriginalFilename());
 
         StoredFile stored;
@@ -41,6 +42,7 @@ public class FileController {
             logger.log(Level.SEVERE, "Error saving file: " + file.getOriginalFilename(), e);
             throw e;  // rethrow to let Spring handle it
         }
+
 
         return Map.of(
                 "fileId", stored.getFileId(),
@@ -75,4 +77,6 @@ public class FileController {
                         "attachment; filename=\"" + resource.getFilename() + "\"")
                 .body(resource);
     }
+
 }
+}v
