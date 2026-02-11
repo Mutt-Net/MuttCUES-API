@@ -26,4 +26,6 @@ replay_pid*
 /uploads
 /.apt_generated/
 /.apt_generated_tests/
+/uploads
 /node_modules
+/downloads
