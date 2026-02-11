@@ -1,34 +1,58 @@
 package net.muttcode.spring.controller;
 
-import java.io.IOException;
-
-import org.springframework.beans.factory.annotation.Autowired;
+import net.muttcode.spring.service.FileService;
+import net.muttcode.spring.service.StoredFile;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import net.muttcode.spring.service.FileService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
+@CrossOrigin(origins = "http://localhost:5173")
 public class FileController {
 
-	@Autowired
-	private FileService fileService;
+    private final FileService fileService;
 
-	@PostMapping("/upload")
-	public String uploadFile(@RequestParam("file") MultipartFile file) {
-		try {
-			String fileId = fileService.saveFile(file);
-			System.out.println("Upload successful, fileId: " + fileId);
-			return "{\"fileId\":\"" + fileId + "\"}";
-		} catch (IOException e) {
-			e.printStackTrace();
-			return "{\"error\":\"" + e.getMessage() + "\"}";
-		}
-	}
+    public FileController(FileService fileService) {
+        this.fileService = fileService;
+    }
 
-	@GetMapping("/files/{fileId}")
-	public Object downloadFile(@PathVariable String fileId) {
-		return fileService.downloadFile(fileId);
-	}
+    // -------- UPLOAD --------
+    @PostMapping("/upload")
+    public Map<String, String> upload(@RequestParam("file") MultipartFile file) throws IOException {
+
+        StoredFile stored = fileService.saveFile(file);
+
+        return Map.of(
+                "fileId", stored.getFileId(),
+                "fileName", stored.getStoredName()
+        );
+    }
+
+    // -------- DOWNLOAD --------
+    @GetMapping("/download/{fileId}")
+public ResponseEntity<Resource> download(@PathVariable String fileId) throws IOException {
+
+    Path filePath = fileService.getFilePath(fileId);
+
+    Resource resource = new UrlResource(filePath.toUri());
+
+    if (!resource.exists() || !resource.isReadable()) {
+        return ResponseEntity.notFound().build();
+    }
+
+    return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION,
+                    "attachment; filename=\"" + resource.getFilename() + "\"")
+            .body(resource);
 }
+}v
