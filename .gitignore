@@ -24,3 +24,8 @@ hs_err_pid*
 replay_pid*
 /target
 /uploads
+/.apt_generated/
+/.apt_generated_tests/
+/uploads
+/node_modules
+/downloads
