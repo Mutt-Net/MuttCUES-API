@@ -1,0 +1,71 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+CHANGELOG.md
+LICENSE
+*.md
+docs/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Build artifacts
+target/
+build/
+dist/
+out/
+*.class
+*.jar
+*.war
+*.ear
+
+# Dependencies
+node_modules/
+bower_components/
+
+# Environment
+.env
+.env.local
+.env.*.local
+*.log
+logs/
+
+# Testing
+coverage/
+.nyc_output/
+*.test.js
+*.spec.js
+test/
+tests/
+__tests__/
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Temp files
+temp/
+tmp/
+*.tmp
+
+# OS
+Thumbs.db
+.DS_Store
