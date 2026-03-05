@@ -1,0 +1,27 @@
+project: MuttCUES-API
+stack: Java 21 / Spring Boot 3.2 / Maven
+
+compute:
+  architecture: claude-sonnet-4-6
+  implementation: qwen2.5-coder:32b
+  ollama_host: http://192.168.0.100:11434
+
+task_classification:
+  holly_class:
+    - architecture decisions
+    - security review (JWT, API keys, CORS)
+    - complex debugging
+    - new feature design
+    - database schema changes
+  skutter_class:
+    - CRUD endpoint implementation
+    - test writing
+    - bug fixes with clear root cause
+    - refactoring known patterns
+    - adding validation to existing endpoints
+
+validation:
+  build: mvn package -DskipTests
+  test: mvn test
+  single_test: mvn test -Dtest=<TestClass>
+  maven_path: Z:/Maven/apache-maven-3.9.12-bin/bin/mvn

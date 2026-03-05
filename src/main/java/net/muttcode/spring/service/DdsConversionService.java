@@ -1,6 +1,9 @@
 package net.muttcode.spring.service;
 
+import net.muttcode.spring.model.File;
 import net.muttcode.spring.model.ProcessedFile;
+import net.muttcode.spring.repository.FileRepository;
+import net.muttcode.spring.repository.ProcessedFileRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -22,6 +25,8 @@ public class DdsConversionService {
     
     private final Path tempPath;
     private final Path outputPath;
+    private final FileRepository fileRepository;
+    private final ProcessedFileRepository processedFileRepository;
     
     private static final int DDS_MAGIC = 0x20534444;
     private static final int DDPF_ALPHAPIXELS = 0x1;
@@ -33,10 +38,14 @@ public class DdsConversionService {
     
     public DdsConversionService(
         @Value("${image.processing.temp.path:/app/temp}") String tempPathStr,
-        @Value("${image.processing.output.path:/app/processed}") String outputPathStr
+        @Value("${image.processing.output.path:/app/processed}") String outputPathStr,
+        FileRepository fileRepository,
+        ProcessedFileRepository processedFileRepository
     ) throws IOException {
         this.tempPath = Path.of(tempPathStr);
         this.outputPath = Path.of(outputPathStr);
+        this.fileRepository = fileRepository;
+        this.processedFileRepository = processedFileRepository;
         Files.createDirectories(this.tempPath);
         Files.createDirectories(this.outputPath);
         logger.info("DDS Conversion Service initialized");
@@ -64,8 +73,24 @@ public class DdsConversionService {
                 throw new IOException("Failed to write PNG file");
             }
             
+            // Create input File entity
+            File inputFile = new File(fileId, filename, fileId + "_input.dds", file.getSize(), "image/vnd.ms-dds");
+            fileRepository.save(inputFile);
+            
+            // Create ProcessedFile entity
+            ProcessedFile processedFile = new ProcessedFile(
+                inputFile,
+                fileId,
+                outputFileName,
+                ProcessedFile.ProcessingType.DDS_TO_PNG
+            );
+            processedFile.setFileSize(Files.size(outputFilePath));
+            processedFile.setContentType("image/png");
+            processedFile.setStatus(ProcessedFile.ProcessedFileStatus.COMPLETED);
+            processedFileRepository.save(processedFile);
+            
             logger.info("DDS converted successfully: " + outputFileName);
-            return new ProcessedFile(fileId, outputFileName, outputFilePath, "image/png");
+            return processedFile;
             
         } finally {
             Files.deleteIfExists(inputPath);
@@ -102,7 +127,23 @@ public class DdsConversionService {
             writeDDS(argbImage, outputFilePath);
             logger.info("Image converted to DDS successfully: " + outputFileName);
             
-            return new ProcessedFile(fileId, outputFileName, outputFilePath, "image/vnd.ms-dds");
+            // Create input File entity
+            File inputFile = new File(fileId, filename, fileId + "_input" + getExtension(filename), file.getSize(), file.getContentType());
+            fileRepository.save(inputFile);
+            
+            // Create ProcessedFile entity
+            ProcessedFile processedFile = new ProcessedFile(
+                inputFile,
+                fileId,
+                outputFileName,
+                ProcessedFile.ProcessingType.IMAGE_TO_DDS
+            );
+            processedFile.setFileSize(Files.size(outputFilePath));
+            processedFile.setContentType("image/vnd.ms-dds");
+            processedFile.setStatus(ProcessedFile.ProcessedFileStatus.COMPLETED);
+            processedFileRepository.save(processedFile);
+            
+            return processedFile;
             
         } finally {
             Files.deleteIfExists(inputPath);

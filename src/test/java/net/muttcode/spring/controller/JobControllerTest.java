@@ -1,13 +1,20 @@
 package net.muttcode.spring.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import net.muttcode.spring.config.JwtAuthenticationFilter;
 import net.muttcode.spring.model.ProcessingJob;
+import net.muttcode.spring.service.CustomUserDetailsService;
+import net.muttcode.spring.service.FileService;
+import net.muttcode.spring.service.JobQueueService;
+import net.muttcode.spring.service.JwtService;
 import net.muttcode.spring.service.ProcessingJobService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
@@ -20,6 +27,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(JobController.class)
+@ActiveProfiles("test")
+@AutoConfigureMockMvc(addFilters = false)
 class JobControllerTest {
 
     @Autowired
@@ -33,6 +42,21 @@ class JobControllerTest {
 
     @MockBean
     private net.muttcode.spring.service.ImageProcessingService imageProcessingService;
+
+    @MockBean
+    private FileService fileService;
+
+    @MockBean
+    private JobQueueService jobQueueService;
+
+    @MockBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockBean
+    private JwtService jwtService;
+
+    @MockBean
+    private CustomUserDetailsService userDetailsService;
 
     @Test
     void getJobStatus_shouldReturnJobWhenExists() throws Exception {

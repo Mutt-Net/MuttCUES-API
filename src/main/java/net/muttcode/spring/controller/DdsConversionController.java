@@ -43,9 +43,9 @@ public class DdsConversionController {
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("fileId", result.getFileId());
-            response.put("fileName", result.getFileName());
-            response.put("downloadUrl", "/api/convert/" + result.getFileId());
+            response.put("fileId", result.getProcessedFileId());
+            response.put("fileName", result.getProcessedName());
+            response.put("downloadUrl", "/api/convert/" + result.getProcessedFileId());
             
             return ResponseEntity.ok(response);
             
@@ -69,9 +69,9 @@ public class DdsConversionController {
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("fileId", result.getFileId());
-            response.put("fileName", result.getFileName());
-            response.put("downloadUrl", "/api/convert/" + result.getFileId());
+            response.put("fileId", result.getProcessedFileId());
+            response.put("fileName", result.getProcessedName());
+            response.put("downloadUrl", "/api/convert/" + result.getProcessedFileId());
             response.put("format", "Uncompressed ARGB");
             
             return ResponseEntity.ok(response);
