@@ -68,8 +68,8 @@ public class FileController {
 
             logger.info("File found, preparing download: " + resource.getFilename());
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "Error accessing file for fileId: " + fileId, e);
-            throw e;
+            logger.log(Level.SEVERE, "File not found for fileId: " + fileId, e);
+            return ResponseEntity.notFound().build();
         }
 
         return ResponseEntity.ok()
