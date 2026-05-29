@@ -57,6 +57,11 @@ public class JobQueueService {
         return jobId;
     }
 
+    public long getQueueDepth() {
+        Long size = redisTemplate.opsForList().size(JOB_QUEUE);
+        return size != null ? size : 0L;
+    }
+
     public void updateJobStatus(String jobId, String status, Integer progress) {
         redisTemplate.opsForHash().put(JOB_STATUS_PREFIX + jobId, "status", status);
         if (progress != null) {
