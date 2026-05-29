@@ -35,7 +35,7 @@ public class DashboardService {
     @Value("${upscayl.output.path:/app/output}")
     private String outputDir;
 
-    private List<String> cachedModels;
+    private volatile List<String> cachedModels;
 
     public DashboardService(ProcessingJobRepository jobRepository, JobQueueService jobQueueService) {
         this.jobRepository = jobRepository;
@@ -80,9 +80,9 @@ public class DashboardService {
         }
 
         List<Map<String, String>> recent = new ArrayList<>();
-        List<ProcessingJob> recentJobs = jobRepository.findTop10ByStatusOrderByCompletedAtDesc(
+        List<ProcessingJob> recentJobs = jobRepository.findTop5ByStatusOrderByCompletedAtDesc(
                 ProcessingJob.JobStatus.COMPLETED);
-        for (ProcessingJob job : recentJobs.subList(0, Math.min(5, recentJobs.size()))) {
+        for (ProcessingJob job : recentJobs) {
             Map<String, String> item = new HashMap<>();
             String filename = job.getInputFileId().length() > 12
                     ? job.getInputFileId().substring(0, 12) + "…"
@@ -105,7 +105,7 @@ public class DashboardService {
 
         long queueDepth = jobQueueService.getQueueDepth();
         long running = jobRepository.countByStatus(ProcessingJob.JobStatus.PROCESSING);
-        long completed24h = jobRepository.countByStatusAndCreatedAtAfter(
+        long completed24h = jobRepository.countByStatusAndCompletedAtAfter(
                 ProcessingJob.JobStatus.COMPLETED, since24h);
         long failed24h = jobRepository.countByStatusAndCreatedAtAfter(
                 ProcessingJob.JobStatus.FAILED, since24h);
