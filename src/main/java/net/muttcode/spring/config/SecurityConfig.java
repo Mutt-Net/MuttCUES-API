@@ -50,6 +50,7 @@ public class SecurityConfig {
                     .requestMatchers("/api/jobs/process").permitAll()
                     .requestMatchers("/api/upload/**").permitAll()
                     .requestMatchers("/actuator/**").permitAll()
+                    .requestMatchers("/api/dashboard-summary", "/api/status").permitAll()
                     .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -63,6 +64,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/api/auth/**").permitAll()
                     .requestMatchers("/actuator/**").permitAll()
+                    .requestMatchers("/api/dashboard-summary", "/api/status").permitAll()
                     .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
