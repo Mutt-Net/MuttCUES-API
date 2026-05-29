@@ -16,5 +16,7 @@ public interface ProcessingJobRepository extends JpaRepository<ProcessingJob, St
     List<ProcessingJob> findByStatusAndCreatedAtBefore(ProcessingJob.JobStatus status, Instant before);
     long countByStatusAndCreatedAtAfter(ProcessingJob.JobStatus status, Instant since);
     List<ProcessingJob> findTop10ByStatusOrderByCompletedAtDesc(ProcessingJob.JobStatus status);
+    List<ProcessingJob> findTop5ByStatusOrderByCompletedAtDesc(ProcessingJob.JobStatus status);
     long countByStatus(ProcessingJob.JobStatus status);
+    long countByStatusAndCompletedAtAfter(ProcessingJob.JobStatus status, Instant since);
 }
