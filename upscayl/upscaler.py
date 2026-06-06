@@ -19,3 +19,13 @@ def build_command(input_path, output_path, model, scale, gpu=True,
         "-m", models_dir,
         "-g", "0" if gpu else "-1",
     ]
+
+
+def list_models(models_dir=DEFAULT_MODELS_DIR):
+    if not os.path.isdir(models_dir):
+        return []
+    return sorted(
+        os.path.splitext(f)[0]
+        for f in os.listdir(models_dir)
+        if f.endswith(".param")
+    )
