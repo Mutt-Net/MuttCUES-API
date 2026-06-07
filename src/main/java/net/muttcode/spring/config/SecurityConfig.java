@@ -16,6 +16,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.access.expression.WebExpressionAuthorizationManager;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -47,24 +48,26 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/api/auth/**").permitAll()
-                    .requestMatchers("/api/jobs/process").permitAll()
-                    .requestMatchers("/api/upload/**").permitAll()
-                    .requestMatchers("/actuator/**").permitAll()
                     .requestMatchers("/api/dashboard-summary", "/api/status").permitAll()
+                    .requestMatchers("/actuator/health").permitAll()
+                    .requestMatchers("/api/upload/**", "/api/jobs/**", "/api/convert/**", "/api/jobs/process").access(lanOnly())
+                    .requestMatchers("/actuator/**").access(lanOnly())
                     .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         } else {
-            // Production mode - require authentication
+            // Production mode - pipeline endpoints are always public (internal LAN service)
             http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/api/auth/**").permitAll()
-                    .requestMatchers("/actuator/**").permitAll()
                     .requestMatchers("/api/dashboard-summary", "/api/status").permitAll()
+                    .requestMatchers("/actuator/health").permitAll()
+                    .requestMatchers("/api/upload/**", "/api/jobs/**", "/api/convert/**", "/api/jobs/process").access(lanOnly())
+                    .requestMatchers("/actuator/**").access(lanOnly())
                     .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -73,6 +76,13 @@ public class SecurityConfig {
         }
 
         return http.build();
+    }
+
+    // Pipeline endpoints are called over localhost without a JWT, so they cannot
+    // require authentication; restrict them to localhost + the LAN instead.
+    private static WebExpressionAuthorizationManager lanOnly() {
+        return new WebExpressionAuthorizationManager(
+            "hasIpAddress('127.0.0.1') or hasIpAddress('::1') or hasIpAddress('192.168.0.0/24')");
     }
 
     @Bean
