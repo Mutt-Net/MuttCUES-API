@@ -6,18 +6,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         unzip curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Prebuilt realesrgan-ncnn-vulkan + bundled models.
-# UPSCAYL_NCNN_URL is the upscayl-ncnn Linux release zip (confirm the current
-# asset before building — see plan Task 6 Step 1).
-ARG UPSCAYL_NCNN_URL
+# Prebuilt upscayl-ncnn binary (fork of realesrgan-ncnn-vulkan; same CLI flags).
+# The release zip ships ONLY the binary — models are provisioned separately into
+# the upscayl-models volume (see scripts/provision_models.sh).
+ARG UPSCAYL_NCNN_URL=https://github.com/upscayl/upscayl-ncnn/releases/download/20251207-174704/upscayl-bin-20251207-174704-linux.zip
 RUN mkdir -p /opt/upscayl /app/models /app/io/input /app/io/output \
     && curl -fSL "$UPSCAYL_NCNN_URL" -o /tmp/u.zip \
     && unzip -q /tmp/u.zip -d /opt/upscayl && rm /tmp/u.zip \
-    && BIN="$(find /opt/upscayl -type f -name 'realesrgan-ncnn-vulkan' | head -1)" \
-    && ln -s "$BIN" /usr/local/bin/realesrgan-ncnn-vulkan \
-    && chmod +x "$BIN" \
-    && MODELS="$(dirname "$(find /opt/upscayl -type f -name '*.param' | head -1)")" \
-    && cp -a "$MODELS"/. /app/models/
+    && BIN="$(find /opt/upscayl -type f -name 'upscayl-bin' | head -1)" \
+    && install -m 0755 "$BIN" /usr/local/bin/upscayl-bin
 
 COPY upscayl/requirements.txt /app/requirements.txt
 RUN pip3 install --no-cache-dir -r /app/requirements.txt
@@ -26,11 +23,12 @@ COPY upscayl/ /app/
 # Vulkan needs the 'graphics' capability or the NVIDIA ICD is not exposed.
 ENV NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=all \
+    UPSCAYL_BINARY=upscayl-bin \
     MODELS_DIR=/app/models \
     INPUT_ROOT=/app/io/input \
     OUTPUT_ROOT=/app/io/output
 WORKDIR /app
 EXPOSE 8081
 # Bind to loopback only: the API reaches it via localhost (host networking),
-# but external hosts cannot, even if the host port is exposed.
+# external hosts cannot, even if the host port is exposed.
 CMD ["waitress-serve", "--listen=127.0.0.1:8081", "app:app"]

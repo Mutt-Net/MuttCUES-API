@@ -1,0 +1,51 @@
+name: Publish Upscayl Sidecar Image
+
+on:
+  push:
+    branches: [feature/muttcues-integration, main, master]
+    paths:
+      - "Dockerfile.upscayl"
+      - "upscayl/**"
+      - ".gitea/workflows/docker-publish-upscayl.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Build & publish upscayl sidecar
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute short SHA tag
+        id: tags
+        run: echo "sha=$(echo "${GITHUB_SHA}" | cut -c1-12)" >> "$GITHUB_OUTPUT"
+
+      - name: Build & push to Gitea registry
+        env:
+          REGISTRY_PAT: ${{ secrets.REGISTRY_PAT }}
+        run: |
+          set -euo pipefail
+          REGISTRY="192.168.0.12:30008"
+          IMAGE="${REGISTRY}/hol/muttcues-upscayl"
+          SHA="${{ steps.tags.outputs.sha }}"
+
+          # Install a docker CLI matching the host daemon (runner mounts the host socket).
+          DOCKER_VERSION="27.5.1"
+          curl -fsSL "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_VERSION}.tgz" \
+            | tar xz -C /tmp
+          cp /tmp/docker/docker /usr/local/bin/
+          docker version --format 'Docker CLI {{.Client.Version}} (API {{.Client.APIVersion}})'
+
+          echo "${REGISTRY_PAT}" | docker login "${REGISTRY}" -u Hol --password-stdin
+
+          docker build -f Dockerfile.upscayl \
+            -t "${IMAGE}:latest" \
+            -t "${IMAGE}:${SHA}" \
+            .
+          docker push "${IMAGE}:latest"
+          docker push "${IMAGE}:${SHA}"
+          echo "Published ${IMAGE}:latest and :${SHA}"
