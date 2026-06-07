@@ -83,7 +83,7 @@ public class SecurityConfig {
     private static WebExpressionAuthorizationManager lanOnly() {
         return new WebExpressionAuthorizationManager(
             "hasIpAddress('127.0.0.1') or hasIpAddress('::1') "
-            + "or hasIpAddress('192.168.0.0/24') or hasIpAddress('172.16.0.0/12')");
+            + "or hasIpAddress('192.168.0.0/24') or hasIpAddress('172.28.0.200/32')");
     }
 
     @Bean
