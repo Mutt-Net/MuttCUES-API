@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
+FROM nvidia/cuda:12.6.3-runtime-ubuntu24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -18,7 +18,7 @@ RUN mkdir -p /opt/upscayl /app/models /app/io/input /app/io/output \
     && install -m 0755 "$BIN" /usr/local/bin/upscayl-bin
 
 COPY upscayl/requirements.txt /app/requirements.txt
-RUN pip3 install --no-cache-dir -r /app/requirements.txt
+RUN pip3 install --no-cache-dir --break-system-packages -r /app/requirements.txt
 COPY upscayl/ /app/
 
 # Vulkan needs the 'graphics' capability or the NVIDIA ICD is not exposed.
