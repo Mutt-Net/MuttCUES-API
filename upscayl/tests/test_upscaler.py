@@ -1,3 +1,7 @@
+import os
+import subprocess
+from types import SimpleNamespace
+
 import upscaler
 
 
@@ -34,11 +38,6 @@ def test_list_models_missing_dir_returns_empty():
     assert upscaler.list_models("/no/such/dir") == []
 
 
-import subprocess
-from types import SimpleNamespace
-import os
-
-
 def test_run_upscale_missing_input_returns_error():
     res = upscaler.run_upscale("/no/input.png", "/out/o.png")
     assert res["status"] == "error"
@@ -46,7 +45,8 @@ def test_run_upscale_missing_input_returns_error():
 
 
 def test_run_upscale_success(tmp_path, monkeypatch):
-    inp = tmp_path / "in.png"; inp.write_text("img")
+    inp = tmp_path / "in.png"
+    inp.write_text("img")
     out = tmp_path / "out" / "in_4x.png"
     def fake_run(cmd, **kw):
         os.makedirs(os.path.dirname(out), exist_ok=True)
@@ -58,7 +58,8 @@ def test_run_upscale_success(tmp_path, monkeypatch):
 
 
 def test_run_upscale_nonzero_exit_returns_stderr(tmp_path, monkeypatch):
-    inp = tmp_path / "in.png"; inp.write_text("img")
+    inp = tmp_path / "in.png"
+    inp.write_text("img")
     monkeypatch.setattr(subprocess, "run",
                         lambda cmd, **kw: SimpleNamespace(returncode=1, stdout="", stderr="model not found"))
     res = upscaler.run_upscale(str(inp), str(tmp_path / "o.png"), binary="fake")
@@ -66,7 +67,8 @@ def test_run_upscale_nonzero_exit_returns_stderr(tmp_path, monkeypatch):
 
 
 def test_run_upscale_timeout_returns_error(tmp_path, monkeypatch):
-    inp = tmp_path / "in.png"; inp.write_text("img")
+    inp = tmp_path / "in.png"
+    inp.write_text("img")
     def boom(cmd, **kw):
         raise subprocess.TimeoutExpired(cmd, 300)
     monkeypatch.setattr(subprocess, "run", boom)
@@ -75,8 +77,19 @@ def test_run_upscale_timeout_returns_error(tmp_path, monkeypatch):
 
 
 def test_run_upscale_success_but_no_output_is_error(tmp_path, monkeypatch):
-    inp = tmp_path / "in.png"; inp.write_text("img")
+    inp = tmp_path / "in.png"
+    inp.write_text("img")
     monkeypatch.setattr(subprocess, "run",
                         lambda cmd, **kw: SimpleNamespace(returncode=0, stdout="", stderr=""))
     res = upscaler.run_upscale(str(inp), str(tmp_path / "missing.png"), binary="fake")
     assert res["status"] == "error" and "no output" in res["error"]
+
+
+def test_run_upscale_binary_not_found_returns_error(tmp_path, monkeypatch):
+    inp = tmp_path / "in.png"
+    inp.write_text("img")
+    def boom(cmd, **kw):
+        raise FileNotFoundError
+    monkeypatch.setattr(subprocess, "run", boom)
+    res = upscaler.run_upscale(str(inp), str(tmp_path / "o.png"), binary="bad-binary")
+    assert res["status"] == "error" and "binary not found" in res["error"]

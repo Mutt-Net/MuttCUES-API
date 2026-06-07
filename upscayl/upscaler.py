@@ -51,7 +51,9 @@ def run_upscale(input_path, output_path, model=DEFAULT_MODEL, scale=DEFAULT_SCAL
 
     if proc.returncode != 0:
         msg = (proc.stderr or proc.stdout or "non-zero exit").strip()
-        return {"status": "error", "error": msg[:1000]}
+        if len(msg) > 1000:
+            msg = msg[:1000] + " … [truncated]"
+        return {"status": "error", "error": msg}
     if not os.path.exists(output_path):
         return {"status": "error", "error": "binary reported success but produced no output file"}
     return {"status": "success", "output": output_path}
