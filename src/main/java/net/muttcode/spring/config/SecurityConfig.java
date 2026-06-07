@@ -82,7 +82,8 @@ public class SecurityConfig {
     // require authentication; restrict them to localhost + the LAN instead.
     private static WebExpressionAuthorizationManager lanOnly() {
         return new WebExpressionAuthorizationManager(
-            "hasIpAddress('127.0.0.1') or hasIpAddress('::1') or hasIpAddress('192.168.0.0/24')");
+            "hasIpAddress('127.0.0.1') or hasIpAddress('::1') "
+            + "or hasIpAddress('192.168.0.0/24') or hasIpAddress('172.16.0.0/12')");
     }
 
     @Bean

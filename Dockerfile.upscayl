@@ -29,6 +29,7 @@ ENV NVIDIA_VISIBLE_DEVICES=all \
     OUTPUT_ROOT=/app/io/output
 WORKDIR /app
 EXPOSE 8081
-# Bind to loopback only: the API reaches it via localhost (host networking),
-# external hosts cannot, even if the host port is exposed.
-CMD ["waitress-serve", "--listen=127.0.0.1:8081", "app:app"]
+# Listen on all interfaces so muttcues-api can reach it over the Docker bridge.
+# Isolation comes from NOT publishing this port in compose — only services on the
+# muttnet bridge can reach it; app-level path/model validation guards it too.
+CMD ["waitress-serve", "--listen=*:8081", "app:app"]
