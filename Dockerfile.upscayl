@@ -1,10 +1,18 @@
 FROM nvidia/cuda:12.6.3-runtime-ubuntu24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Ubuntu 24.04 ships Vulkan loader 1.3.275, which is too old to load the NVIDIA
+# driver-580 ICD (api 1.4.x) — vkCreateInstance fails with INCOMPATIBLE_DRIVER.
+# Pull libvulkan1 + vulkan-tools from LunarG's SDK repo for a current loader.
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+    && curl -fsSL https://packages.lunarg.com/lunarg-signing-key-pub.asc \
+        -o /etc/apt/trusted.gpg.d/lunarg.asc \
+    && curl -fsSL https://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list \
+        -o /etc/apt/sources.list.d/lunarg-vulkan-noble.list \
+    && apt-get update && apt-get install -y --no-install-recommends \
         python3 python3-pip libvulkan1 vulkan-tools libgomp1 \
         libx11-6 libxext6 libgl1 \
-        unzip curl ca-certificates \
+        unzip \
     && rm -rf /var/lib/apt/lists/*
 
 # Prebuilt upscayl-ncnn binary (fork of realesrgan-ncnn-vulkan; same CLI flags).
