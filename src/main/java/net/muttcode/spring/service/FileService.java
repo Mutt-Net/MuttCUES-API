@@ -51,4 +51,18 @@ public class FileService {
     public Path getFilePathByStoredName(String storedName) {
         return uploadDir.resolve(storedName).normalize();
     }
+
+    public StoredFile saveFileFromPath(Path sourcePath, String originalName) throws IOException {
+        String fileId = UUID.randomUUID().toString();
+        String storedName = fileId + "_" + originalName;
+        Path target = uploadDir.resolve(storedName);
+        Files.copy(sourcePath, target, StandardCopyOption.REPLACE_EXISTING);
+
+        String contentType = Files.probeContentType(sourcePath);
+        if (contentType == null) contentType = "application/octet-stream";
+
+        File fileEntity = new File(fileId, originalName, storedName, Files.size(sourcePath), contentType);
+        fileRepository.save(fileEntity);
+        return new StoredFile(fileId, originalName, storedName, target);
+    }
 }

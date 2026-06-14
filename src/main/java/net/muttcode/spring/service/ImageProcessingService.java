@@ -94,18 +94,15 @@ public class ImageProcessingService {
 
             if (result.isSuccess()) {
                 String outputFileName = Path.of(result.getOutputPath()).getFileName().toString();
-                String outputFileId = UUID.randomUUID().toString() + "_" + outputFileName;
-                
-                Path outputPath = fileService.getFilePath(outputFileId);
                 Path upscaylOutput = Path.of(upscaylOutputMount, outputFileName);
-                
+
                 if (Files.exists(upscaylOutput)) {
-                    Files.copy(upscaylOutput, outputPath, StandardCopyOption.REPLACE_EXISTING);
-                    
-                    // Create ProcessedFile record for the output
-                    createProcessedFileRecord(job, outputFileId, outputFileName, outputPath, processingTime);
-                    
-                    jobService.completeJob(jobId, outputFileId, processingTime);
+                    // saveFileFromPath copies the file, creates a File entity, and returns a real fileId
+                    // that getFilePath() can resolve for the subsequent download request.
+                    StoredFile outputStored = fileService.saveFileFromPath(upscaylOutput, outputFileName);
+                    createProcessedFileRecord(job, outputStored.getFileId(), outputFileName,
+                            outputStored.getPath(), processingTime);
+                    jobService.completeJob(jobId, outputStored.getFileId(), processingTime);
                     logger.info("Job {} completed successfully in {}ms", jobId, processingTime);
                 } else {
                     jobService.failJob(jobId, "Output file not found after processing");

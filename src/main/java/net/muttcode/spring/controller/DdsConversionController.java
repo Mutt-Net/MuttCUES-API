@@ -2,10 +2,13 @@ package net.muttcode.spring.controller;
 
 import net.muttcode.spring.model.ProcessedFile;
 import net.muttcode.spring.service.DdsConversionService;
+import net.muttcode.spring.service.FileService;
+import net.muttcode.spring.service.StoredFile;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -25,9 +28,60 @@ public class DdsConversionController {
     
     private static final Logger logger = Logger.getLogger(DdsConversionController.class.getName());
     private final DdsConversionService ddsConversionService;
-    
-    public DdsConversionController(DdsConversionService ddsConversionService) {
+    private final FileService fileService;
+
+    public DdsConversionController(DdsConversionService ddsConversionService, FileService fileService) {
         this.ddsConversionService = ddsConversionService;
+        this.fileService = fileService;
+    }
+
+    @PostMapping(value = "/dds-to-png", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> convertDdsToPngByFileId(@RequestBody Map<String, Object> body) {
+        String fileId = (String) body.get("fileId");
+        if (fileId == null || fileId.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "fileId is required"));
+        }
+        try {
+            Path inputPath = fileService.getFilePath(fileId);
+            String storedName = inputPath.getFileName().toString();
+            // storedName = "{uuid}_{originalName}" — UUID has no underscores, split on first _
+            String originalName = storedName.substring(storedName.indexOf('_') + 1);
+
+            ProcessedFile result = ddsConversionService.ddsToPngFromPath(inputPath, originalName);
+            Path outputFilePath = ddsConversionService.getOutputPath().resolve(result.getProcessedName());
+            String outputOriginalName = result.getProcessedName().substring(result.getProcessedName().indexOf('_') + 1);
+            StoredFile stored = fileService.saveFileFromPath(outputFilePath, outputOriginalName);
+
+            return ResponseEntity.ok(Map.of("outputFileId", stored.getFileId()));
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "DDS-to-PNG by fileId failed for " + fileId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", e.getMessage() != null ? e.getMessage() : "conversion failed"));
+        }
+    }
+
+    @PostMapping(value = "/image-to-dds", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> convertImageToDdsByFileId(@RequestBody Map<String, Object> body) {
+        String fileId = (String) body.get("fileId");
+        if (fileId == null || fileId.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "fileId is required"));
+        }
+        try {
+            Path inputPath = fileService.getFilePath(fileId);
+            String storedName = inputPath.getFileName().toString();
+            String originalName = storedName.substring(storedName.indexOf('_') + 1);
+
+            ProcessedFile result = ddsConversionService.imageToDdsFromPath(inputPath, originalName);
+            Path outputFilePath = ddsConversionService.getOutputPath().resolve(result.getProcessedName());
+            String outputOriginalName = result.getProcessedName().substring(result.getProcessedName().indexOf('_') + 1);
+            StoredFile stored = fileService.saveFileFromPath(outputFilePath, outputOriginalName);
+
+            return ResponseEntity.ok(Map.of("outputFileId", stored.getFileId()));
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Image-to-DDS by fileId failed for " + fileId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", e.getMessage() != null ? e.getMessage() : "conversion failed"));
+        }
     }
     
     @PostMapping("/dds-to-png")

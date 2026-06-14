@@ -52,18 +52,15 @@ public class UpscaylService {
             throw new IOException("Input file not found: " + inputFilePath);
         }
 
-        // Use the actual input file path (may be a mount point like /app/input/file.png)
         String inputFileName = inputFile.getName();
         String outputFileName = getOutputFileName(inputFileName, scaleFactor);
-        
-        // Derive output path from input path to support flexible mount points
-        Path inputPath = inputFile.toPath();
-        Path outputDir = inputPath.getParent();
-        Path outputPath = outputDir.resolve(outputFileName);
-        
+
+        // Use the configured output mount — the local variable must NOT shadow the @Value field.
+        String upscaylOutput = outputPath + "/" + outputFileName;
+
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("input", inputFilePath);
-        requestBody.put("output", outputPath.toString());
+        requestBody.put("output", upscaylOutput);
         requestBody.put("model", modelName);
         requestBody.put("scale", scaleFactor);
         requestBody.put("gpu", true);

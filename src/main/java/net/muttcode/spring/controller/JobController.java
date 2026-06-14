@@ -5,6 +5,7 @@ import net.muttcode.spring.service.FileService;
 import net.muttcode.spring.service.ImageProcessingService;
 import net.muttcode.spring.service.JobQueueService;
 import net.muttcode.spring.service.ProcessingJobService;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -34,7 +35,29 @@ public class JobController {
         this.jobQueueService = jobQueueService;
     }
 
-    @PostMapping("/process")
+    @PostMapping(value = "/process", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public Map<String, Object> submitJobByFileId(@RequestBody Map<String, Object> body) throws IOException {
+        String fileId = (String) body.get("fileId");
+        if (fileId == null || fileId.isBlank()) {
+            throw new IllegalArgumentException("fileId is required");
+        }
+        Integer scaleFactor = body.get("scaleFactor") != null
+            ? ((Number) body.get("scaleFactor")).intValue() : 2;
+        String modelName = body.get("modelName") != null
+            ? (String) body.get("modelName") : "realesrgan-x4plus";
+
+        String jobId = imageProcessingService.submitJob(fileId, scaleFactor, modelName);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("jobId", jobId);
+        response.put("inputFileId", fileId);
+        response.put("status", "QUEUED");
+        response.put("scaleFactor", scaleFactor);
+        response.put("modelName", modelName);
+        return response;
+    }
+
+    @PostMapping(value = "/process", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Map<String, Object> submitJob(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "scaleFactor", defaultValue = "2") Integer scaleFactor,

@@ -376,6 +376,61 @@ public class DdsConversionService {
         return dot > 0 ? filename.substring(dot) : "";
     }
     
+    public ProcessedFile ddsToPngFromPath(Path inputPath, String originalFilename) throws IOException {
+        if (!originalFilename.toLowerCase().endsWith(".dds")) {
+            throw new IllegalArgumentException("File must be a DDS file: " + originalFilename);
+        }
+        String fileId = UUID.randomUUID().toString();
+        BufferedImage image = readDDS(inputPath);
+
+        String baseName = originalFilename.substring(0, originalFilename.lastIndexOf('.'));
+        String outputFileName = fileId + "_" + baseName + ".png";
+        Path outputFilePath = outputPath.resolve(outputFileName);
+        if (!ImageIO.write(image, "PNG", outputFilePath.toFile())) {
+            throw new IOException("Failed to write PNG: " + outputFilePath);
+        }
+
+        File inputFile = new File(fileId, originalFilename, inputPath.getFileName().toString(),
+            Files.size(inputPath), "image/vnd.ms-dds");
+        fileRepository.save(inputFile);
+
+        ProcessedFile processedFile = new ProcessedFile(inputFile, fileId, outputFileName,
+            ProcessedFile.ProcessingType.DDS_TO_PNG);
+        processedFile.setFileSize(Files.size(outputFilePath));
+        processedFile.setContentType("image/png");
+        processedFile.setStatus(ProcessedFile.ProcessedFileStatus.COMPLETED);
+        processedFileRepository.save(processedFile);
+        return processedFile;
+    }
+
+    public ProcessedFile imageToDdsFromPath(Path inputPath, String originalFilename) throws IOException {
+        String lower = originalFilename.toLowerCase();
+        if (!lower.endsWith(".png") && !lower.endsWith(".jpg") && !lower.endsWith(".jpeg")) {
+            throw new IllegalArgumentException("File must be PNG or JPG: " + originalFilename);
+        }
+        String fileId = UUID.randomUUID().toString();
+        BufferedImage image = ImageIO.read(inputPath.toFile());
+        if (image == null) throw new IOException("Failed to read image: " + inputPath);
+
+        BufferedImage argbImage = convertToARGB(image);
+        String baseName = originalFilename.substring(0, originalFilename.lastIndexOf('.'));
+        String outputFileName = fileId + "_" + baseName + ".dds";
+        Path outputFilePath = outputPath.resolve(outputFileName);
+        writeDDS(argbImage, outputFilePath);
+
+        File inputFile = new File(fileId, originalFilename, inputPath.getFileName().toString(),
+            Files.size(inputPath), "image/png");
+        fileRepository.save(inputFile);
+
+        ProcessedFile processedFile = new ProcessedFile(inputFile, fileId, outputFileName,
+            ProcessedFile.ProcessingType.IMAGE_TO_DDS);
+        processedFile.setFileSize(Files.size(outputFilePath));
+        processedFile.setContentType("image/vnd.ms-dds");
+        processedFile.setStatus(ProcessedFile.ProcessedFileStatus.COMPLETED);
+        processedFileRepository.save(processedFile);
+        return processedFile;
+    }
+
     public Path getOutputPath() { return outputPath; }
     
     private static class DdsHeader {
