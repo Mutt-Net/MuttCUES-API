@@ -155,8 +155,10 @@ public class UpscaylService {
     }
 
     private String getOutputFileName(String inputFileName, Integer scaleFactor) {
-        String baseName = inputFileName.substring(0, inputFileName.lastIndexOf('.'));
-        String extension = inputFileName.substring(inputFileName.lastIndexOf('.'));
+        int dot = inputFileName.lastIndexOf('.');
+        // Input may be a bare fileId (UUID, no extension); default to .png.
+        String baseName = dot >= 0 ? inputFileName.substring(0, dot) : inputFileName;
+        String extension = dot >= 0 ? inputFileName.substring(dot) : ".png";
         return baseName + "_" + scaleFactor + "x" + extension;
     }
 
