@@ -78,26 +78,46 @@ def _load(model, models_dir, device):
 
 
 @torch.inference_mode()
-def _infer(desc, t):
-    """t: (1,3,H,W) float[0,1] on the model's device. Tiled to bound VRAM."""
+def _infer(desc, t, tile):
+    """t: (1,3,H,W) float[0,1] on the model's device. tile<=0 or >= image = one
+    pass; otherwise tiled to bound VRAM."""
     scale = desc.scale
     _, _, h, w = t.shape
-    if TILE <= 0 or (h <= TILE and w <= TILE):
+    if tile <= 0 or (h <= tile and w <= tile):
         return desc(t).clamp_(0, 1)
 
     out = torch.zeros((1, 3, h * scale, w * scale), device=t.device, dtype=t.dtype)
-    for y in range(0, h, TILE):
-        for x in range(0, w, TILE):
+    for y in range(0, h, tile):
+        for x in range(0, w, tile):
             y0, x0 = max(y - TILE_PAD, 0), max(x - TILE_PAD, 0)
-            y1, x1 = min(y + TILE + TILE_PAD, h), min(x + TILE + TILE_PAD, w)
+            y1, x1 = min(y + tile + TILE_PAD, h), min(x + tile + TILE_PAD, w)
             up = desc(t[:, :, y0:y1, x0:x1]).clamp_(0, 1)
             # source region within this (padded) tile, mapped to output scale
             sy, sx = (y - y0) * scale, (x - x0) * scale
             oy0, ox0 = y * scale, x * scale
-            oy1 = min((y + TILE) * scale, h * scale)
-            ox1 = min((x + TILE) * scale, w * scale)
+            oy1 = min((y + tile) * scale, h * scale)
+            ox1 = min((x + tile) * scale, w * scale)
             out[:, :, oy0:oy1, ox0:ox1] = up[:, :, sy:sy + (oy1 - oy0), sx:sx + (ox1 - ox0)]
     return out
+
+
+def _infer_resilient(desc, t, device):
+    """Run inference, halving the tile on CUDA OOM down to a 64px floor. The GPU
+    is shared, so the free slice varies job-to-job; shrinking the tile shrinks
+    the allocation to fit whatever is currently free."""
+    tile = TILE if TILE > 0 else max(int(t.shape[-2]), int(t.shape[-1]))
+    while True:
+        try:
+            if device == "cuda":
+                torch.cuda.empty_cache()
+            return _infer(desc, t, tile)
+        except RuntimeError as exc:
+            if "out of memory" not in str(exc).lower() or tile <= 64:
+                raise
+            if device == "cuda":
+                torch.cuda.empty_cache()
+            tile = max(64, tile // 2)
+            log.warning("CUDA OOM — retrying upscale with tile=%d", tile)
 
 
 def run_upscale(input_path, output_path, model=DEFAULT_MODEL, scale=DEFAULT_SCALE,
@@ -118,7 +138,7 @@ def run_upscale(input_path, output_path, model=DEFAULT_MODEL, scale=DEFAULT_SCAL
 
         arr = np.asarray(rgb, dtype=np.float32) / 255.0          # H,W,3
         t = torch.from_numpy(arr).permute(2, 0, 1).unsqueeze(0).to(device)
-        out_t = _infer(desc, t)
+        out_t = _infer_resilient(desc, t, device)
         out_np = (out_t.squeeze(0).permute(1, 2, 0).cpu().numpy() * 255.0).round().astype(np.uint8)
         result = Image.fromarray(out_np, mode="RGB")
 
