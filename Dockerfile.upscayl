@@ -1,38 +1,37 @@
 FROM nvidia/cuda:12.6.3-runtime-ubuntu24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-# Ubuntu 24.04 ships Vulkan loader 1.3.275, which is too old to load the NVIDIA
-# driver-580 ICD (api 1.4.x) — vkCreateInstance fails with INCOMPATIBLE_DRIVER.
-# Pull libvulkan1 + vulkan-tools from LunarG's SDK repo for a current loader.
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
-    && curl -fsSL https://packages.lunarg.com/lunarg-signing-key-pub.asc \
-        -o /etc/apt/trusted.gpg.d/lunarg.asc \
-    && curl -fsSL https://packages.lunarg.com/vulkan/lunarg-vulkan-noble.list \
-        -o /etc/apt/sources.list.d/lunarg-vulkan-noble.list \
-    && apt-get update && apt-get install -y --no-install-recommends \
-        python3 python3-pip libvulkan1 vulkan-tools libgomp1 \
-        libx11-6 libxext6 libgl1 \
-        unzip \
+# CUDA Real-ESRGAN sidecar. This host's containerized Vulkan is broken (NVIDIA
+# driver-580 ICD won't init in any container) but CUDA/compute works, so we run
+# Real-ESRGAN via PyTorch on the GPU instead of the Vulkan upscayl-ncnn binary.
+# Hence we request ONLY compute,utility — not graphics — avoiding the broken
+# Vulkan injection entirely. libgl1/libglib2.0-0 are for Pillow image I/O.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3 python3-pip curl ca-certificates libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Prebuilt upscayl-ncnn binary (fork of realesrgan-ncnn-vulkan; same CLI flags).
-# The release zip ships ONLY the binary — models are provisioned separately into
-# the upscayl-models volume (see scripts/provision_models.sh).
-ARG UPSCAYL_NCNN_URL=https://github.com/upscayl/upscayl-ncnn/releases/download/20251207-174704/upscayl-bin-20251207-174704-linux.zip
-RUN mkdir -p /opt/upscayl /app/models /app/io/input /app/io/output \
-    && curl -fSL "$UPSCAYL_NCNN_URL" -o /tmp/u.zip \
-    && unzip -q /tmp/u.zip -d /opt/upscayl && rm /tmp/u.zip \
-    && BIN="$(find /opt/upscayl -type f -name 'upscayl-bin' | head -1)" \
-    && install -m 0755 "$BIN" /usr/local/bin/upscayl-bin
+# Torch with bundled CUDA 12.4 runtime (works with driver 580); the host driver
+# (libcuda) is injected by nvidia-container-toolkit at run time.
+RUN pip3 install --no-cache-dir --break-system-packages \
+        --index-url https://download.pytorch.org/whl/cu124 \
+        torch torchvision
 
 COPY upscayl/requirements.txt /app/requirements.txt
 RUN pip3 install --no-cache-dir --break-system-packages -r /app/requirements.txt
+
+# Real-ESRGAN PyTorch weights. spandrel auto-detects the architecture from the
+# .pth; drop additional ESRGAN/NMKD weights into the models volume to use them
+# by filename stem (e.g. 4x_NMKD-Superscale-SP_178000_G.pth).
+RUN mkdir -p /app/models /app/io/input /app/io/output \
+    && curl -fSL https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth \
+        -o /app/models/RealESRGAN_x4plus.pth \
+    && curl -fSL https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth \
+        -o /app/models/RealESRGAN_x2plus.pth
+
 COPY upscayl/ /app/
 
-# Vulkan needs the 'graphics' capability or the NVIDIA ICD is not exposed.
 ENV NVIDIA_VISIBLE_DEVICES=all \
-    NVIDIA_DRIVER_CAPABILITIES=all \
-    UPSCAYL_BINARY=upscayl-bin \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility \
     MODELS_DIR=/app/models \
     INPUT_ROOT=/app/io/input \
     OUTPUT_ROOT=/app/io/output
