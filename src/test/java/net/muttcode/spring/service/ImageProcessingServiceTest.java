@@ -3,12 +3,9 @@ package net.muttcode.spring.service;
 import net.muttcode.spring.model.File;
 import net.muttcode.spring.model.ProcessedFile;
 import net.muttcode.spring.model.ProcessingJob;
-import net.muttcode.spring.repository.FileRepository;
-import net.muttcode.spring.repository.ProcessedFileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -17,7 +14,6 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
@@ -25,51 +21,30 @@ import static org.mockito.Mockito.*;
 class ImageProcessingServiceTest {
 
     @Mock
-    private UpscaylService upscaylService;
-
-    @Mock
-    private FileService fileService;
-
-    @Mock
     private ProcessingJobService jobService;
 
     @Mock
-    private JobQueueService jobQueueService;
-
-    @Mock
-    private ProcessedFileRepository processedFileRepository;
-
-    @Mock
-    private FileRepository fileRepository;
+    private JobProcessor jobProcessor;
 
     private ImageProcessingService service;
 
     @BeforeEach
     void setUp() {
-        service = new ImageProcessingService(
-            upscaylService,
-            fileService,
-            jobService,
-            jobQueueService,
-            processedFileRepository,
-            fileRepository
-        );
+        service = new ImageProcessingService(jobService, jobProcessor);
     }
 
     @Test
-    void submitJob_shouldCreateJobAndReturnJobId() throws Exception {
+    void submitJob_shouldCreateJobAndDispatchAsync() throws Exception {
         String inputFileId = "test-file-id";
         Integer scaleFactor = 4;
         String modelName = "ultramix_balanced";
-
-        // Mock enqueueJob to return a job ID
-        when(jobQueueService.enqueueJob(anyString(), anyInt(), anyString())).thenReturn("queued-job-id");
 
         String jobId = service.submitJob(inputFileId, scaleFactor, modelName);
 
         assertNotNull(jobId);
         verify(jobService, times(1)).saveJob(any(ProcessingJob.class));
-        verify(jobQueueService, times(1)).enqueueJob(inputFileId, scaleFactor, modelName);
+        // The real upscale is handed to the async processor bean (not run inline).
+        verify(jobProcessor, times(1)).processJobAsync(anyString());
     }
 
     @Test
